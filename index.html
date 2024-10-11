@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+   
+   <link href="stylesheet.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <title>노래방 스타일 가사 비주얼라이저</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+        #visualizer {
+            flex: 1;
+            font-size: 6px;
+            line-height: 1;
+            white-space: pre;
+            text-align: left;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            transform: scaleX(-1);
+            position: relative;
+            height: 95%;
+            top: -680px;
+            
+        }
+        #lyrics-container {
+            position: fixed;
+            right: 0px;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: right;
+            z-index: 10;
+            width: 40%;
+        }
+        #lyrics {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #ffffff;
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .scrolling-text {
+            white-space: nowrap;
+            overflow: hidden;
+            font-size: 14px;
+            height: 20px;
+            position: absolute;
+            width: 100%;
+        }
+        #topText { top: 0; }
+        #bottomText { bottom: 0; }
+        .scrolling-text-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: scroll 20s linear infinite;
+        }
+        @keyframes scroll {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+        
+        
+        
+        
+      
+   
+    </style>
+</head>
+<body>
+   
+   <div class="bang">
+      <img class="abc" src="1.gif">
+            <img class="def" src="2.gif">
+                  <img class="ghk" src="3.gif">
+
+   </div>
+    <div id="container">
+        <div id="visualizer"></div>
+    </div>
+    <div id="lyrics-container">
+        <div id="lyrics"></div>
+    </div>
+    <div id="topText" class="scrolling-text"><div class="scrolling-text-content"></div></div>
+    <div id="bottomText" class="scrolling-text"><div class="scrolling-text-content"></div></div>
+    <audio id="audioElement" src="ReRe.mp3"></audio>
+
+    <script>
+        const visualizer = document.getElementById('visualizer');
+        const topTextContent = document.querySelector('#topText .scrolling-text-content');
+        const bottomTextContent = document.querySelector('#bottomText .scrolling-text-content');
+        const audioElement = document.getElementById('audioElement');
+        const lyricsElement = document.getElementById('lyrics');
+        
+        const chars = " ▁▂▃▄▅▆▇█";
+        let audioContext, analyser;
+
+        const lyricsData = [
+            { time: 30, text: "君を待った" },
+            { time: 32, text: "僕は待った" },
+            { time: 34, text: "途切れない明日も過ぎて行って" },
+            { time: 37, text: "立ち止まって振り返って" },
+            { time: 40, text: "とめどない今日を嘆き合った" },
+            { time: 43, text: "記憶だって永遠になんて" },
+            { time: 46, text: "残らないものとおもい知って" },
+            { time: 49, text: "僕はずっと掻きむしって" },
+            { time: 52, text: "心の隅っこで泣いた" },
+            { time: 55, text: "そしてどうかなくさないでよって" },
+            { time: 58, text: "高架下、過ぎる日々を" },
+            { time: 62, text: "後悔してんだよって" },
+            { time: 65, text: "そう言い逃したあの日" },
+            { time: 82, text: "繋ぎ合った時もあった" },
+            { time: 85, text: "ほどけない感情持ち寄って" },
+            { time: 88, text: "それが僕の全てだった" },
+            { time: 91, text: "それもたった今 失くしたんだ" },
+            { time: 94, text: "形だって 時が経って" },
+            { time: 97, text: "変わりゆくものとおもい知って" },
+            { time: 100, text: "僕はずっと掻きむしって" },
+            { time: 104, text: "塞がれた今日を恨んだ" },
+            { time: 107, text: "そしてどうかなくさないでよって" },
+            { time: 109, text: "高架下、過ぎる日々を" },
+            { time: 113, text: "後悔してんだよって" },
+            { time: 115, text: "そう言い逃したあの日" },
+            { time: 163, text: "君を待った" },
+            { time: 165, text: "僕は待った" },
+            { time: 167, text: "途切れない明日も過ぎて行って" },
+            { time: 169, text: "僕は今日も掻きむしって" },
+            { time: 172, text: "忘れない傷をつけているんだよ" },
+            { time: 180, text: "君じゃないとさ" }
+        ];
+
+        function updateScrollingText() {
+            const text = "ASIANKUNGFUGENERATION-RERE ";
+            topTextContent.textContent = text.repeat(20);
+            bottomTextContent.textContent = text.repeat(20);
+        }
+
+        updateScrollingText();
+
+        function setupAudioContext() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 1024;
+
+            const source = audioContext.createMediaElementSource(audioElement);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+
+            visualize();
+            displayLyrics();
+        }
+
+        function displayLyrics() {
+            lyricsData.forEach((line, index) => {
+                setTimeout(() => {
+                    lyricsElement.innerText = line.text;
+                    lyricsElement.style.opacity = 1;
+
+                    if (index < lyricsData.length - 1) {
+                        const nextLineTime = lyricsData[index + 1].time;
+                        const currentLineTime = line.time;
+                        const displayDuration = (nextLineTime - currentLineTime) * 1000 - 500;
+                        
+                        setTimeout(() => {
+                            lyricsElement.style.opacity = 0;
+                        }, displayDuration);
+                    }
+                }, line.time * 1000);
+            });
+        }
+
+        function startAudio() {
+            if (audioContext) return;
+            audioElement.play().then(() => {
+                setupAudioContext();
+                console.log("Audio started");
+            }).catch(error => {
+                console.error("Error starting audio:", error);
+            });
+        }
+
+        function visualize() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                const rows = Math.floor(visualizer.clientHeight / 6);
+                const cols = Math.floor(visualizer.clientWidth / 6);
+
+                let visualization = '';
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const dataIndex = Math.floor(j * bufferLength / cols);
+                        const value = dataArray[dataIndex];
+                        const intensity = value / 255;
+                        const charIndex = Math.floor(intensity * (chars.length - 1));
+                        visualization += chars[charIndex];
+                    }
+                    visualization += '\n';
+                }
+
+                visualizer.textContent = visualization;
+            }
+
+            draw();
+        }
+
+        visualizer.textContent = "스페이스바를 누르거나 화면을 클릭하여 시작하세요.";
+
+        window.addEventListener('resize', function() {
+            if (analyser) visualize();
+            updateScrollingText();
+        });
+
+        window.addEventListener('keydown', function(e) {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                startAudio();
+            }
+        });
+
+        window.addEventListener('click', startAudio);
+        
+        
+    </script>
+</body>
+</html>
